@@ -10,14 +10,18 @@ def gen_beta(n: int, t: int) -> np.array:
     beta_mean = np.random.uniform(0.6, 0.8, n)
     # for each mean, generate a random normal distribution with variance 0.01
     # combine the seasonality pattern with the random normal distribution
-    beta = np.array([beta_mean[i] + 0.1 * np.cos(4 * np.pi * np.arange(t) / 365) for i in range(n)])
+    beta = np.array(
+        [beta_mean[i] + 0.1 * np.cos(4 * np.pi * np.arange(t) / 365) for i in range(n)]
+    )
     # inject some noise to beta
     # comment the following line to remove noise if needed
     # beta += np.random.normal(0, 0.01, (n,t))
     return beta
 
 
-def switch_beta_value(current_value: float, high_value: float, low_value: float) -> float:
+def switch_beta_value(
+    current_value: float, high_value: float, low_value: float
+) -> float:
     """
     Helper function for gen_step_beta()
     Switches the beta value from high to low or vice versa.
@@ -25,10 +29,18 @@ def switch_beta_value(current_value: float, high_value: float, low_value: float)
     return low_value if current_value == high_value else high_value
 
 
-def gen_step_beta(n: int, t: int, period=31) -> np.ndarray:
+def gen_step_beta(n: int, t: int, period: int = 31) -> np.ndarray:
     """
     Generate a step-function beta.
     Switches value at each period.
+
+    Args:
+        n: number of locations
+        t: number of time steps
+        period: time step at which beta switches value
+
+    Returns:
+        Array of beta values; n x t dimensions.
     """
     # beta varies by location
     beta_mean = np.random.uniform(0.5, 0.7, n)
