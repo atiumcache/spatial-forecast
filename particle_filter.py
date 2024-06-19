@@ -164,7 +164,7 @@ def run_linear_particle_filter(params: ParticleFilterParams) -> ParticleFilterSt
     state = initialize_particles(params)
 
     for t in range(params.results.shape[0]):
-        print(f"Iteration: {t + 1}")
+        print(f"Iteration: {t + 1} \r")
 
         if t != 0:
             update_particles(params, state, t)
