@@ -1,6 +1,5 @@
 import numpy as np
 
-from library import gen_mov_ratio
 
 TAU_DAY = 1 / 3  # Time step for daytime tau leap
 TAU_NIGHT = 2 / 3  # Time step for night time tau leap
@@ -61,7 +60,7 @@ def SIR_tau_leap(population, movement, mov_ratio, initial_cond, beta):
         + np.sum(transfer_SI, axis=0).T
         - mov_ratio @ result[:, 1, 0]
     )
-    # find the negative values in ressult[:,1,i]
+    # find the negative values in result[:,1,i]
     # The reason for the negative values is that the force of infection is too high
     # find the index of the negative values in S
     neg_index_S = np.where(result[:, 0, 1] < 0)

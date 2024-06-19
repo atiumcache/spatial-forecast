@@ -24,7 +24,8 @@ def switch_beta_value(
 ) -> float:
     """
     Helper function for gen_step_beta()
-    Switches the beta value from high to low or vice versa.
+    Switches the beta value from high to low or vice versa, at the period
+    intervals defined in gen_step_beta().
     """
     return low_value if current_value == high_value else high_value
 

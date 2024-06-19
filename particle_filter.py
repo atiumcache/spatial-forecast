@@ -57,6 +57,54 @@ class ParticleFilterState:
         return np.vstack(self.all_resampling_indices)
 
 
+def run_log_particle_filter(params: ParticleFilterParams) -> ParticleFilterState:
+    """
+    Runs the log domain particle filter
+    according to the parameters passed in.
+    """
+    np.random.seed(13)
+    state = initialize_particles(params)
+
+    for t in range(params.results.shape[0]):
+        print(f"Iteration: {t + 1} \r")
+
+        if t != 0:
+            update_particles(params, state, t)
+
+        compute_log_weights(params, state, t)
+        state.save_weights()
+        log_resample_algo(state, t)
+        perturb_betas(state, params.num_locations, t)
+
+        posterior_update(state, t)
+
+    return state
+
+
+def run_linear_particle_filter(params: ParticleFilterParams) -> ParticleFilterState:
+    """
+    Runs the linear domain particle filter
+    according to the parameters passed in.
+    """
+    np.random.seed(13)
+    state = initialize_particles(params)
+
+    for t in range(params.results.shape[0]):
+        print(f"Iteration: {t + 1} \r")
+
+        if t != 0:
+            update_particles(params, state, t)
+
+        compute_linear_weights(params, state, t)
+        state.save_weights()
+        linear_resample_algo(state, t)
+        perturb_betas(state, params.num_locations, t)
+
+        posterior_update(state, t)
+
+    return state
+
+
 def initialize_particles(params: ParticleFilterParams) -> ParticleFilterState:
     """
     Initializes the PF state class.
@@ -111,7 +159,7 @@ def linear_resample_algo(state: ParticleFilterState, t) -> None:
 def log_resample_algo(state: ParticleFilterState, t: int) -> None:
     num_particles = state.weights.size
     resampling_indices = np.zeros(num_particles, dtype=int)
-    log_cdf = jacob(state.weights)
+    log_cdf = jacobian(state.weights)
     u = np.random.uniform(0, 1 / num_particles)
 
     i = 0
@@ -155,28 +203,7 @@ def perturb_betas(state: ParticleFilterState, n: int, t: int):
         )
 
 
-def run_linear_particle_filter(params: ParticleFilterParams) -> ParticleFilterState:
-    """
-    Runs the linear domain particle filter
-    according to the parameters passed in.
-    """
-    np.random.seed(13)
-    state = initialize_particles(params)
 
-    for t in range(params.results.shape[0]):
-        print(f"Iteration: {t + 1} \r")
-
-        if t != 0:
-            update_particles(params, state, t)
-
-        compute_linear_weights(params, state, t)
-        state.save_weights()
-        linear_resample_algo(state, t)
-        perturb_betas(state, params.num_locations, t)
-
-        posterior_update(state, t)
-
-    return state
 
 
 def posterior_update(state, t):
@@ -188,28 +215,7 @@ def posterior_update(state, t):
     )
 
 
-def run_log_particle_filter(params: ParticleFilterParams) -> ParticleFilterState:
-    """
-    Runs the log domain particle filter
-    according to the parameters passed in.
-    """
-    np.random.seed(13)
-    state = initialize_particles(params)
 
-    for t in range(params.results.shape[0]):
-        print(f"Iteration: {t + 1} \r")
-
-        if t != 0:
-            update_particles(params, state, t)
-
-        compute_log_weights(params, state, t)
-        state.save_weights()
-        log_resample_algo(state, t)
-        perturb_betas(state, params.num_locations, t)
-
-        posterior_update(state, t)
-
-    return state
 
 
 def compute_log_weights(
@@ -262,10 +268,10 @@ def update_particles(
         state.betas[i, :, t] = state.betas[i, :, t - 1]
 
 
-def jacob(δ: np.ndarray) -> np.ndarray:
+def jacobian(δ: np.ndarray) -> np.ndarray:
     """
-    The jacobian logarithm, used in log likelihood normalization and resampling processes
-    δ will be an array of values.
+    The jacobian logarithm, used in log likelihood normalization and
+    resampling processes.
 
     Args:
         δ: An array of values to sum
@@ -282,7 +288,10 @@ def jacob(δ: np.ndarray) -> np.ndarray:
 
 
 def log_norm(log_weights):
-    """normalizes the probability space using the jacobian logarithm as defined in jacob()"""
-    normalized = jacob(log_weights)[-1]
+    """
+    Normalizes the probability space using the jacobian logarithm as
+    defined in jacobian().
+    """
+    normalized = jacobian(log_weights)[-1]
     log_weights -= normalized
     return log_weights
