@@ -2,17 +2,21 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from scipy.stats import norm
-import multiprocessing as mp
 from tau_leap import SIR_tau_leap
-import time
 
 
 @dataclass
 class ParticleFilterParams:
+    """
+    This class should be deprecated and all usage
+    should be replaced with the Simulation Object.
+    """
+
     num_particles: int
     num_locations: int
     population: np.ndarray
     movement: np.ndarray
+    mov_ratio: np.ndarray
     results: np.ndarray
     data: np.ndarray = field(init=False)
 
@@ -22,19 +26,35 @@ class ParticleFilterParams:
 
 @dataclass
 class ParticleFilterState:
+    """
+    This object models an array of particles, including the
+    current beta values and weights.
+
+    It also stores the posterior distributions and
+    implements methods for keeping track of weights and resampling indices
+    at each time step for analysis.
+    """
+
     particles: np.ndarray
     betas: np.ndarray
     weights: np.ndarray
     m_post: np.ndarray
     beta_post: np.ndarray
-    all_weights: np.ndarray = field(init=False)
-    all_resampling_indices: np.ndarray = field(init=False)
+    all_weights: list = field(default_factory=list)
+    all_resampling_indices: list = field(default_factory=list)
 
     def save_weights(self) -> None:
-        np.append(self.all_weights, self.weights)
+        self.all_weights.append(self.weights.copy())
+
+    def get_all_weights_as_array(self) -> np.ndarray:
+        # Convert the list of arrays to a 2D numpy array
+        return np.vstack(self.all_weights)
 
     def save_resampling_indices(self, indices: np.ndarray) -> None:
-        np.append(self.all_resampling_indices, indices)
+        self.all_resampling_indices.append(indices)
+
+    def get_all_resampling_indices_as_array(self) -> np.ndarray:
+        return np.vstack(self.all_resampling_indices)
 
 
 def initialize_particles(params: ParticleFilterParams) -> ParticleFilterState:
@@ -141,6 +161,7 @@ def run_linear_particle_filter(params: ParticleFilterParams) -> ParticleFilterSt
     Runs the linear domain particle filter
     according to the parameters passed in.
     """
+    np.random.seed(13)
     state = initialize_particles(params)
 
     for t in range(params.results.shape[0]):
@@ -150,6 +171,7 @@ def run_linear_particle_filter(params: ParticleFilterParams) -> ParticleFilterSt
             update_particles(params, state, t)
 
         compute_linear_weights(params, state, t)
+        state.save_weights()
         linear_resample_algo(state, t)
         perturb_betas(state, params.num_locations, t)
 
@@ -172,6 +194,7 @@ def run_log_particle_filter(params: ParticleFilterParams) -> ParticleFilterState
     Runs the log domain particle filter
     according to the parameters passed in.
     """
+    np.random.seed(13)
     state = initialize_particles(params)
 
     for t in range(params.results.shape[0]):
@@ -181,6 +204,7 @@ def run_log_particle_filter(params: ParticleFilterParams) -> ParticleFilterState
             update_particles(params, state, t)
 
         compute_log_weights(params, state, t)
+        state.save_weights()
         log_resample_algo(state, t)
         perturb_betas(state, params.num_locations, t)
 
@@ -232,6 +256,7 @@ def update_particles(
         state.particles[i, :, :, t] = SIR_tau_leap(
             params.population,
             params.movement,
+            params.mov_ratio,
             state.particles[i, :, :, t - 1],
             state.betas[i, :, t - 1],
         )[:, :, -1]

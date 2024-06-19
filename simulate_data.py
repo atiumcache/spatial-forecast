@@ -15,6 +15,7 @@ class Simulation:
     beta: np.ndarray = field(init=False)
     real_beta: np.ndarray = field(init=False)
     results: np.ndarray = field(init=False)
+    data: np.ndarray = field(init=False)
 
     def __post_init__(self):
         np.random.seed(2)
@@ -26,6 +27,7 @@ class Simulation:
         self.real_beta = self.gen_step_beta(self.num_locations, self.days)
         self.results = np.zeros((self.days, self.num_locations, 3))
         self.results[0, :, :] = self.initial_cond
+        self.data = self.results[:, :, 1]
 
     @staticmethod
     def gen_population(n: int) -> np.ndarray:
