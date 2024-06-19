@@ -1,2 +1,2 @@
-### 06.19.2024
-See a current example of usage in `weight_comparisons.ipynb`.
+### 2024.06.19
+See a current example of usage in `weight_comparison.ipynb`.
