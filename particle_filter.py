@@ -90,7 +90,6 @@ def initialize_particles(params: ParticleFilterParams) -> ParticleFilterState:
 
 
 def linear_resample_algo(state: ParticleFilterState, t) -> None:
-    np.random.seed(43)
     num_particles = state.weights.size
     resampling_indices = np.zeros(num_particles, dtype=int)
     cdf = np.cumsum(state.weights)
@@ -110,7 +109,6 @@ def linear_resample_algo(state: ParticleFilterState, t) -> None:
 
 
 def log_resample_algo(state: ParticleFilterState, t: int) -> None:
-    np.random.seed(43)
     num_particles = state.weights.size
     resampling_indices = np.zeros(num_particles, dtype=int)
     log_cdf = jacob(state.weights)
@@ -142,12 +140,13 @@ def resample_particles_and_params(
 
 def perturb_betas(state: ParticleFilterState, n: int, t: int):
     """
+    Perturbs the beta values with a multi-variate normal distribution.
+
     Args:
         state: ParticleFilterState class
         n: number of particles
         t: time steps
     """
-    np.random.seed(28)
     for i in range(state.particles.shape[0]):
         state.betas[i, :, t] = np.exp(
             np.random.multivariate_normal(
