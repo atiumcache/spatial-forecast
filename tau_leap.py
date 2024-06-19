@@ -6,12 +6,11 @@ TAU_DAY = 1 / 3  # Time step for daytime tau leap
 TAU_NIGHT = 2 / 3  # Time step for night time tau leap
 
 
-def SIR_tau_leap(population, movement, initial_cond, beta):
+def SIR_tau_leap(population, movement, mov_ratio, initial_cond, beta):
     n = len(population)
     # initialize the result array
     result = np.zeros((n, 3, 2))
     result[:, :, 0] = initial_cond
-    mov_ratio = gen_mov_ratio(movement, population)
 
     # start the tau leap for the day time
     # separate the movers in S,I,R compartments with movement matrix
@@ -50,10 +49,18 @@ def SIR_tau_leap(population, movement, initial_cond, beta):
 
     # start the tau leap for the night time
     # add the newly infected people back to their home location
-    result[:, 0, 1] = result[:, 0, 1] + np.sum(mov_S, axis=0).T - np.sum(transfer_SI, axis=0).T - mov_ratio @ result[:,
-                                                                                                              0, 0]
-    result[:, 1, 1] = result[:, 1, 1] + np.sum(mov_I, axis=0).T + np.sum(transfer_SI, axis=0).T - mov_ratio @ result[:,
-                                                                                                              1, 0]
+    result[:, 0, 1] = (
+        result[:, 0, 1]
+        + np.sum(mov_S, axis=0).T
+        - np.sum(transfer_SI, axis=0).T
+        - mov_ratio @ result[:, 0, 0]
+    )
+    result[:, 1, 1] = (
+        result[:, 1, 1]
+        + np.sum(mov_I, axis=0).T
+        + np.sum(transfer_SI, axis=0).T
+        - mov_ratio @ result[:, 1, 0]
+    )
     # find the negative values in ressult[:,1,i]
     # The reason for the negative values is that the force of infection is too high
     # find the index of the negative values in S

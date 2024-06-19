@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from dataclasses import dataclass, field
 
+
 @dataclass
 class Simulation:
     num_locations: int
@@ -41,7 +42,9 @@ class Simulation:
         return np.random.randint(5_000_000, 10_000_000, n)
 
     @staticmethod
-    def gen_movement(population: np.ndarray, min_move=0.03, max_move=0.08, mov=1, chain=1):
+    def gen_movement(
+        population: np.ndarray, min_move=0.03, max_move=0.08, mov=1, chain=1
+    ):
         """
         Generates an n by n numpy array of integers representing the movement of people from each location.
         Movement is a random number between 3% and 8% of the total population of the location.
@@ -106,7 +109,9 @@ class Simulation:
         return np.array([S, I, R]).T
 
     @staticmethod
-    def switch_beta_value(current_value: float, high_value: float, low_value: float) -> float:
+    def switch_beta_value(
+        current_value: float, high_value: float, low_value: float
+    ) -> float:
         """
         Switches the beta value from high to low or vice versa.
 
@@ -142,21 +147,23 @@ class Simulation:
 
             for day in range(t):
                 if day % period == 0 and day != 0:
-                    current_value = self.switch_beta_value(current_value, high_value, low_value)
+                    current_value = self.switch_beta_value(
+                        current_value, high_value, low_value
+                    )
                 beta[i, day] = current_value
 
         return beta
 
     def plot_mov_ratio(self):
         """Plot the movement ratio matrix using imshow."""
-        plt.imshow(self.mov_ratio, cmap='bwr', interpolation='nearest')
+        plt.imshow(self.mov_ratio, cmap="bwr", interpolation="nearest")
         plt.colorbar()
         plt.show()
 
     def plot_real_beta(self):
         """Plot the beta values for each location."""
         for i in range(self.num_locations):
-            plt.plot(self.real_beta[i], label='Location ' + str(i))
+            plt.plot(self.real_beta[i], label="Location " + str(i))
         plt.legend()
         plt.show()
 
@@ -168,20 +175,24 @@ class Simulation:
             sir_tau_leap: A function to run the SIR model.
         """
         for t in range(1, self.days):
-            self.results[t, :, :] = sir_tau_leap(self.population, self.movement, self.results[t-1, :, :], self.real_beta[:, t])[:, :, -1]
+            self.results[t, :, :] = sir_tau_leap(
+                self.population,
+                self.movement,
+                self.mov_ratio,
+                self.results[t - 1, :, :],
+                self.real_beta[:, t],
+            )[:, :, -1]
 
     def plot_infected(self) -> None:
+        """PLot the infected compartment of the simulated data."""
         # plot infected compartments for all locations together in one plot
         plt.plot(self.results[:, :, 1])
-        # add legend to the plot
         plt.legend(range(self.num_locations))
-        # add title to the plot
         plt.title("Infected compartments for all locations")
 
     def plot_susceptible(self) -> None:
+        """Plot the susceptible compartment of the simulated data."""
         # plot susceptible compartments for all locations together in one plot
         plt.plot(self.results[:, :, 0])
-        # add legend to the plot
         plt.legend(range(self.num_locations))
-        # add title to the plot
         plt.title("Susceptible compartments for all locations")

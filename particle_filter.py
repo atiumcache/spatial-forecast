@@ -6,6 +6,7 @@ import multiprocessing as mp
 from tau_leap import SIR_tau_leap
 import time
 
+
 @dataclass
 class ParticleFilterParams:
     num_particles: int
@@ -27,12 +28,22 @@ class ParticleFilterState:
     m_post: np.ndarray
     beta_post: np.ndarray
     all_weights: np.ndarray = field(init=False)
+    all_resampling_indices: np.ndarray = field(init=False)
 
-    def save_weights(self):
+    def save_weights(self) -> None:
         np.append(self.all_weights, self.weights)
+
+    def save_resampling_indices(self, indices: np.ndarray) -> None:
+        np.append(self.all_resampling_indices, indices)
 
 
 def initialize_particles(params: ParticleFilterParams) -> ParticleFilterState:
+    """
+    Initializes the PF state class.
+    Returns a PFState object that contains particles and associated data.
+    """
+    np.random.seed(47)  # to ensure particle init is always the same
+
     particles = np.zeros(
         (params.num_particles, params.num_locations, 3, params.results.shape[0])
     )
@@ -49,6 +60,7 @@ def initialize_particles(params: ParticleFilterParams) -> ParticleFilterState:
             beta[loc, 0] = np.random.uniform(0.6, 0.8)
         betas.append(beta)
 
+    particles = np.array(particles)
     betas = np.array(betas)
     weights = np.ones(params.num_particles)
     m_post = np.zeros((params.results.shape[0], params.num_locations, 3))
@@ -58,6 +70,7 @@ def initialize_particles(params: ParticleFilterParams) -> ParticleFilterState:
 
 
 def linear_resample_algo(state: ParticleFilterState, t) -> None:
+    np.random.seed(43)
     num_particles = state.weights.size
     resampling_indices = np.zeros(num_particles, dtype=int)
     cdf = np.cumsum(state.weights)
@@ -70,10 +83,14 @@ def linear_resample_algo(state: ParticleFilterState, t) -> None:
             i += 1
         resampling_indices[j] = i
 
+    # save indices to compare to log domain
+    state.save_resampling_indices(resampling_indices)
+
     resample_particles_and_params(resampling_indices, state, t)
 
 
 def log_resample_algo(state: ParticleFilterState, t: int) -> None:
+    np.random.seed(43)
     num_particles = state.weights.size
     resampling_indices = np.zeros(num_particles, dtype=int)
     log_cdf = jacob(state.weights)
@@ -86,10 +103,15 @@ def log_resample_algo(state: ParticleFilterState, t: int) -> None:
             i += 1
         resampling_indices[j] = i
 
+    # save indices to compare to lin domain
+    state.save_resampling_indices(resampling_indices)
+
     resample_particles_and_params(resampling_indices, state, t)
 
 
-def resample_particles_and_params(resampling_indices: np.ndarray, state: ParticleFilterState, t: int) -> None:
+def resample_particles_and_params(
+    resampling_indices: np.ndarray, state: ParticleFilterState, t: int
+) -> None:
     """
     Helper function for lin and log resampling algos.
     Performs the actual resampling after the indices are chosen.
@@ -105,6 +127,7 @@ def perturb_betas(state: ParticleFilterState, n: int, t: int):
         n: number of particles
         t: time steps
     """
+    np.random.seed(28)
     for i in range(state.particles.shape[0]):
         state.betas[i, :, t] = np.exp(
             np.random.multivariate_normal(
@@ -119,7 +142,6 @@ def run_linear_particle_filter(params: ParticleFilterParams) -> ParticleFilterSt
     according to the parameters passed in.
     """
     state = initialize_particles(params)
-    state.particles = np.array(state.particles)
 
     for t in range(params.results.shape[0]):
         print(f"Iteration: {t + 1}")
@@ -151,7 +173,6 @@ def run_log_particle_filter(params: ParticleFilterParams) -> ParticleFilterState
     according to the parameters passed in.
     """
     state = initialize_particles(params)
-    state.particles = np.array(state.particles)
 
     for t in range(params.results.shape[0]):
         print(f"Iteration: {t + 1} \r")
@@ -168,18 +189,24 @@ def run_log_particle_filter(params: ParticleFilterParams) -> ParticleFilterState
     return state
 
 
-def compute_log_weights(params: ParticleFilterParams, state: ParticleFilterState, t: int) -> None:
+def compute_log_weights(
+    params: ParticleFilterParams, state: ParticleFilterState, t: int
+) -> None:
     """Compute particle weights in log domain."""
     state.weights = np.zeros(params.num_particles)
 
     for index in range(params.num_particles):
         for loc in range(params.num_locations):
-            state.weights[index] += norm.logpdf(params.data[t, loc], state.particles[index, loc, 1, t], 100_000)
+            state.weights[index] += norm.logpdf(
+                params.data[t, loc], state.particles[index, loc, 1, t], 100_000
+            )
 
     state.weights = log_norm(state.weights)
 
 
-def compute_linear_weights(params: ParticleFilterParams, state: ParticleFilterState, t: int) -> None:
+def compute_linear_weights(
+    params: ParticleFilterParams, state: ParticleFilterState, t: int
+) -> None:
     """Compute particle weights in linear domain."""
 
     for i in range(params.num_particles):
@@ -190,7 +217,9 @@ def compute_linear_weights(params: ParticleFilterParams, state: ParticleFilterSt
     state.weights /= np.sum(state.weights)
 
 
-def update_particles(params: ParticleFilterParams, state: ParticleFilterState, t: int) -> None:
+def update_particles(
+    params: ParticleFilterParams, state: ParticleFilterState, t: int
+) -> None:
     """
     Update the state of all particles at time t using parallel processing.
 
@@ -230,6 +259,6 @@ def jacob(δ: np.ndarray) -> np.ndarray:
 
 def log_norm(log_weights):
     """normalizes the probability space using the jacobian logarithm as defined in jacob()"""
-    normalized = (jacob(log_weights)[-1])
+    normalized = jacob(log_weights)[-1]
     log_weights -= normalized
     return log_weights
